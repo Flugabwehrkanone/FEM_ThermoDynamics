@@ -1,0 +1,53 @@
+//makes an interval with the functions values for the simpsons rule algorithm
+//the algorithm assumes that the difference between the intervals start and end is 2
+//this is so, that the function can have less arguments
+//this function works perfectly
+
+std::vector<long double>Function_integr_values(std::function<long double(unsigned short int, long double)> func1, std::function<long double(unsigned short int, long double)> func2, 
+unsigned int poly_degree1, unsigned int poly_degree2) {
+	unsigned int number_of_points = ceil((poly_degree1 * poly_degree2) / 2.0);
+	
+	if (number_of_points < 3) {
+		number_of_points = 3;
+	}
+	if (number_of_points % 2 == 0) {
+		number_of_points += 1;
+	}
+	
+	std::vector<long double>interval(number_of_points,0);
+	long double h = 2.0L / (number_of_points-1);
+	long double x = 0.0;
+	
+#pragma omp parallel for
+	for (int i = 0; i < number_of_points; i++) {
+		x = -1.0L + i * h;
+		//std::cout << x << std::endl;
+		interval[i] = func1(poly_degree1, x) * func2(poly_degree2, x);
+	}
+	return interval;
+}
+
+//Simpson's rule, works perfectly
+long double Simpsons_rule(const std::vector<long double>& functionValues, long double a, long double b) {
+	 // Check if n is even
+	unsigned int n = functionValues.size()-1;
+	 if (n % 2 != 0) {
+		 throw std::invalid_argument("Number of intervals n must be even.");
+	 }
+
+	 // Compute the width of each interval
+	 double h = (b - a) / n;
+	 double integral = functionValues[0] + functionValues[n];
+
+	 // Apply Simpson's rule
+#pragma omp parallel for
+	 for (int i = 1; i < n; i += 2) {
+		 integral += 4 * functionValues[i];
+	 }
+#pragma omp parallel for
+	 for (int i = 2; i < n - 1; i += 2) {
+		 integral += 2 * functionValues[i];
+	 }
+	 integral *= h / 3;
+	 return integral;
+ }

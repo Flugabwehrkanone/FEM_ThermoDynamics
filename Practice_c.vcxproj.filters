@@ -38,5 +38,9 @@
     <ClInclude Include="Solver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="matrix_ops.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="matrix_ops.cu" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,13 @@
+void swapColumns(std::vector<std::vector<long double>>& matrix, unsigned short int col1, unsigned short int col2) {
+	for (unsigned int i = 0; i < matrix.size(); ++i) {
+		std::swap(matrix[i][col1], matrix[i][col2]);
+	}
+}
+
+void Matrix_multiply(std::vector<std::vector<long double>>& matrix, float multiplier) {
+	for (auto& row : matrix) {
+		for (auto& elem : row) {
+			elem *= multiplier;
+		}
+	}
+}

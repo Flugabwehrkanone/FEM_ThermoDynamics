@@ -1,10 +1,8 @@
 #pragma once
 
-#include<vector>
 #include"utilities.h"
 #include<omp.h>
-#include<Eigen/Dense>
-#include<Eigen/Core>
+#include"matrix_ops.cuh"
 
 //small matrices (p*p)
 //UPDATE: all matrices are rewritten from std::vector to eigen matrices

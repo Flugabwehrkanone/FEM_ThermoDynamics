@@ -23,31 +23,6 @@ long double Legendre(unsigned short int poly_degree, long double x) {
 	}
 }
 
-//Performace booster for Legendre_d function
-
-//void Legendre_d_helper(unsigned short int poly_degree, long double x, long double& Pn, long double& Pn_1) {
-//	if (poly_degree == 0) {
-//		Pn = 1.0L;
-//		Pn_1 = 0.0L; // P_{-1} is not defined, but this value will not be used
-//	}
-//	else if (poly_degree == 1) {
-//		Pn = x;
-//		Pn_1 = 1.0L; // P_0(x) = 1
-//	}
-//	else {
-//		Pn_1 = 1.0L; // P_0(x)
-//		Pn = x;     // P_1(x)
-//		long double Pn_minus_2 = Pn_1; // To hold P_{n-2} during iteration
-//
-//		for (unsigned short int i = 1; i < poly_degree; ++i) {
-//			long double Pn_temp = Pn;
-//			Pn = ((2.0L * i + 1.0L) * x * Pn - i * Pn_minus_2) / (i + 1.0L);
-//			Pn_minus_2 = Pn_temp;
-//			Pn_1 = Pn_temp;
-//		}
-//	}
-//}
-
 //Derivative of the legendre polynomials
 // 
  //from the formula: dP=n*((Pn_1-x*Pn)/(1-x^2))
@@ -191,74 +166,39 @@ Eigen::VectorXd f_test(unsigned short int poly_degree, unsigned int n, double th
 
 	f(0) = (F(0) * (1 - theta) + dF(0) * theta) * dt;
 	return f;
+} 
+
+//Calculate nodes and weights for the gaussian quadrature, works perfectly
+Eigen::MatrixXd gauss_legendre(unsigned short int poly_degree) {
+	const long double PI = 3.14159265358979323846264338L;
+		long double p1=0.0, p2=0.0, p3 = 0.0, pp = 0.0, z1 = 0.0;
+		Eigen::MatrixXd nodesandWeights=Eigen::MatrixXd::Zero(poly_degree,2);
+	for (int i = 0; i < poly_degree; ++i) {
+		z1 = cos(PI * (i + 0.75) / (poly_degree + 0.5));
+		do {
+			p1 = 1.0;
+			p2 = 0.0;
+			for (int j = 0; j < poly_degree; ++j) {
+				p3 = p2;
+				p2 = p1;
+				p1 = ((2.0 * j + 1.0) * z1 * p2 - j * p3) / (j + 1);
+			}
+			pp = poly_degree * (z1 * p1 - p2) / (z1 * z1 - 1.0);
+			z1 -= p1 / pp;
+		} while (fabs(p1 / pp) > 1e-15);
+		nodesandWeights(i,0) = z1;
+		nodesandWeights(i,1) = 2.0 / ((1.0 - z1 * z1) * pp * pp);
+	}
+	return nodesandWeights;
 }
 
-//void swapColumns(std::vector<std::vector<long double>>& matrix, unsigned short int col1, unsigned short int col2) {
-//	for (unsigned int i = 0; i < matrix.size(); ++i) {
-//		std::swap(matrix[i][col1], matrix[i][col2]);
-//	}
-//}
-//
-//void Matrix_multiply(std::vector<std::vector<long double>>& matrix, float multiplier) {
-//	for (auto& row : matrix) {
-//		for (auto& elem : row) {
-//			elem *= multiplier;
-//		}
-//	}
-//}
-// 
- // Simpson's Rule algorithm
- 
-//Simpson's rule, works perfectly
-long double Simpsons_rule(const std::vector<long double>& functionValues, long double a, long double b) {
-	 // Check if n is even
-	unsigned int n = functionValues.size()-1;
-	 if (n % 2 != 0) {
-		 throw std::invalid_argument("Number of intervals n must be even.");
-	 }
-
-	 // Compute the width of each interval
-	 double h = (b - a) / n;
-	 double integral = functionValues[0] + functionValues[n];
-
-	 // Apply Simpson's rule
-#pragma omp parallel for
-	 for (int i = 1; i < n; i += 2) {
-		 integral += 4 * functionValues[i];
-	 }
-#pragma omp parallel for
-	 for (int i = 2; i < n - 1; i += 2) {
-		 integral += 2 * functionValues[i];
-	 }
-	 integral *= h / 3;
-	 return integral;
- }
-
-//makes an interval with the functions values for the simpsons rule algorithm
-//the algorithm assumes that the difference between the intervals start and end is 2
-//this is so, that the function can have less arguments
-//this function works perfectly
-
-std::vector<long double>Function_integr_values(std::function<long double(unsigned short int, long double)> func1, std::function<long double(unsigned short int, long double)> func2, 
-unsigned int poly_degree1, unsigned int poly_degree2) {
-	unsigned int number_of_points = ceil((poly_degree1 * poly_degree2) / 2.0);
-	
-	if (number_of_points < 3) {
-		number_of_points = 3;
+long double GaussianQuadrature(std::function<long double(unsigned short int, long double)>func1, std::function<long double(unsigned short int, long double)>func2,
+	unsigned short int poly_degree1, unsigned short int poly_degree2) {
+	unsigned short int total_degree = (poly_degree1 + poly_degree2);
+	long double sum = 0.0L;
+	Eigen::MatrixXd NodesandWeights = gauss_legendre(total_degree+1);
+	for (unsigned short int i = 0; i < total_degree+1; i++) {
+		sum += NodesandWeights(i, 1) * (func1(poly_degree1, NodesandWeights(i, 0)) * func2(poly_degree2, NodesandWeights(i, 0)));
 	}
-	if (number_of_points % 2 == 0) {
-		number_of_points += 1;
-	}
-	
-	std::vector<long double>interval(number_of_points,0);
-	long double h = 2.0L / (number_of_points-1);
-	long double x = 0.0;
-	
-#pragma omp parallel for
-	for (int i = 0; i < number_of_points; i++) {
-		x = -1.0L + i * h;
-		//std::cout << x << std::endl;
-		interval[i] = func1(poly_degree1, x) * func2(poly_degree2, x);
-	}
-	return interval;
+	return sum;
 }
